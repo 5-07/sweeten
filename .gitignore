@@ -42,3 +42,4 @@ next-env.d.ts
 
 # Firebase service account key
 firebase-admin-key.json
+firebase-admin-key.json
