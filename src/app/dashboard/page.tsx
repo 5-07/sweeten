@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx
+// app/dashboard/page.tsx (FIXED)
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -6,258 +6,185 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lexend, Lexend_Tera } from "next/font/google";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { getDoc, setDoc, doc, collection, getDocs, addDoc, deleteDoc } from "firebase/firestore";
+import { getDoc, doc, collection, getDocs, addDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+// 🛑 Import the correct dialog component and utilities
+import TodayVitalsDialog from "@/components/TodayVitalsDialog";
+import { fetchAllVitals, fetchUserPlan, VitalsEntry } from "@/lib/vitals";
 import {
-  Activity,
-  ClipboardList,
-  House,
-  LineChart,
-  LogOut,
-  UserRound,
-  X,
-  Bell,
-  CheckCircle2,
-  Plus,
-  Trash2,
+  Activity,
+  ClipboardList,
+  House,
+  LineChart,
+  LogOut,
+  UserRound,
+  X,
+  Bell,
+  Plus,
+  Trash2,
 } from "lucide-react";
+
+// ... (Font and constant definitions remain the same) ...
 
 const lexend = Lexend({ subsets: ["latin"], weight: ["400", "500"] });
 const lexendTera = Lexend_Tera({ subsets: ["latin"], weight: ["700"] });
 
-// Pastel card colors inspired by your refs (kept same)
 const PASTELS = [
-  "bg-[#fde7f2] text-[#7a004b]",
-  "bg-[#fff3b0] text-[#4a0034]",
-  "bg-[#eedbff] text-[#4a0034]",
-  "bg-[#dff7f2] text-[#4a0034]",
+  "bg-[#fde7f2] text-[#7a004b]",
+  "bg-[#fff3b0] text-[#4a0034]",
+  "bg-[#eedbff] text-[#4a0034]",
+  "bg-[#dff7f2] text-[#4a0034]",
 ];
 
-// Cute moods row (kept)
-const MOODS = ["😄", "🙂", "😐", "🙁", "😫"] as const;
-
-type VitalEntry = {
-  date: string;
-  glucose: number | null | string;
-  insulinUnits: number | null | string;
-  carbs: number | null | string;
-  steps: number | null | string;
-  mood: string;
-  notes: string;
-  updatedAt?: number;
-};
-
 type Reminder = {
-  id: string;
-  text: string;
-  createdAt: number;
+  id: string;
+  text: string;
+  createdAt: number;
 };
 
-function isoToday() {
-  return new Date().toISOString().slice(0, 10);
-}
+// 🛑 Removed isoToday and local VitalEntry definition since they are in lib/vitals.ts
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<any | null>(null);
-  const [profile, setProfile] = useState<{ username?: string; photoURL?: string } | null>(null);
-  const [vitals, setVitals] = useState<VitalEntry[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter();
+  const [user, setUser] = useState<any | null>(null);
+  const [profile, setProfile] = useState<{ username?: string; photoURL?: string } | null>(null);
+  // 🛑 Now using the VitalsEntry type from lib/vitals and storing a list
+  const [vitals, setVitals] = useState<VitalsEntry[]>([]); 
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Modal state for "Today" quick entry (unchanged)
-  const [showToday, setShowToday] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [todayForm, setTodayForm] = useState<VitalEntry>({
-    date: isoToday(),
-    glucose: "",
-    insulinUnits: "",
-    carbs: "",
-    steps: "",
-    mood: "",
-    notes: "",
-  });
+  // Modal state for "Today" quick entry (uses imported dialog)
+  const [showToday, setShowToday] = useState(false);
+  
+  // --- NEW: reminders state & modal ---
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [newReminderText, setNewReminderText] = useState("");
+  const [reminderSaving, setReminderSaving] = useState(false);
 
-  // --- NEW: reminders state & modal ---
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [showReminderModal, setShowReminderModal] = useState(false);
-  const [newReminderText, setNewReminderText] = useState("");
-  const [reminderSaving, setReminderSaving] = useState(false);
+  // --- Plan preview state (plain text) ---
+  const [planPreview, setPlanPreview] = useState<string | null>(null);
 
-  // --- Plan preview state (plain text) ---
-  const [planPreview, setPlanPreview] = useState<string | null>(null);
+  // --- Initial data load & Auth gate (Refactored) ---
+  const loadData = async (u: any) => {
+    // Load Profile
+    const snap = await getDoc(doc(db, "users", u.uid));
+    if (snap.exists()) {
+      const data: any = snap.data();
+      setProfile({
+        username: data.username || u.displayName || undefined,
+        photoURL: data.photoURL || u.photoURL || undefined,
+      });
+    } else {
+      await setDoc(doc(db, "users", u.uid), { createdAt: Timestamp.now() }, { merge: true });
+    }
 
-  // --- auth gate + initial data load (kept as-is except we also load reminders + plan) ---
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (!u) {
-        router.replace("/signin");
-        return;
-      }
-      setUser(u);
+    // 🛑 Load Vitals from subcollection (FIXED data source)
+    try {
+      const loadedVitals = await fetchAllVitals(u.uid);
+      setVitals(loadedVitals);
+    } catch (e) {
+      console.error("Failed to load vitals", e);
+    }
 
-      const snap = await getDoc(doc(db, "users", u.uid));
-      if (snap.exists()) {
-        const data: any = snap.data();
-        setProfile({
-          username: data.username || u.displayName || undefined,
-          photoURL: data.photoURL || u.photoURL || undefined,
-        });
-        setVitals(Array.isArray(data.vitals) ? (data.vitals as VitalEntry[]) : []);
+    // Load Reminders
+    try {
+      const remSnap = await getDocs(collection(db, "users", u.uid, "reminders"));
+      const rems: Reminder[] = remSnap.docs.map((d) => {
+        const r = d.data() as any;
+        return { id: d.id, text: r.text, createdAt: r.createdAt?.toMillis() ?? Date.now() };
+      });
+      setReminders(rems);
+    } catch (e) {
+      console.error("Failed to load reminders", e);
+    }
 
-        // load reminders from a subcollection `users/{uid}/reminders`
-        try {
-          const remSnap = await getDocs(collection(db, "users", u.uid, "reminders"));
-          const rems: Reminder[] = [];
-          remSnap.forEach((d) => {
-            const r = d.data() as any;
-            rems.push({
-              id: d.id,
-              text: r.text,
-              createdAt: r.createdAt ?? Date.now(),
-            });
-          });
-          // keep original order
-          setReminders(rems);
-        } catch (e) {
-          console.error("Failed to load reminders", e);
-        }
+    // 🛑 Load Plan Preview using new utility
+    try {
+      const plan = await fetchUserPlan(u.uid);
+      if (typeof plan === 'string') {
+        setPlanPreview(plan);
+      } else if (plan && plan.dayPlans) {
+        // If it's a fallback plan structure
+        setPlanPreview(plan.message + '\n' + plan.dayPlans.map((p:any) => p.day).join(', '));
+      } else {
+        setPlanPreview(null);
+      }
+    } catch (e) {
+      console.error("Failed to load plan preview", e);
+    }
+  };
 
-        // load plan preview from meta doc (we store plan as plain text at users/{uid}/meta/plan -> field `plan`)
-        try {
-          const planDoc = await getDoc(doc(db, "users", u.uid, "meta", "plan"));
-          if (planDoc.exists()) {
-            const pd = planDoc.data();
-            // handle a few possible shapes: plain string, { plan: string }, or object
-            let text: string | null = null;
-            if (typeof pd === "string") text = pd as any;
-            else if (pd?.plan && typeof pd.plan === "string") text = pd.plan;
-            else if (pd?.plan && typeof pd.plan === "object") {
-              // if structured, stringify a bit
-              text = JSON.stringify(pd.plan).slice(0, 600);
-            } else if (pd?.text && typeof pd.text === "string") text = pd.text;
-            else text = null;
-            setPlanPreview(text);
-          } else {
-            setPlanPreview(null);
-          }
-        } catch (e) {
-          console.error("Failed to load plan preview", e);
-        }
-      } else {
-        await setDoc(doc(db, "users", u.uid), { createdAt: Date.now() }, { merge: true });
-      }
-    });
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (!u) {
+        router.replace("/signin");
+        return;
+      }
+      setUser(u);
+      loadData(u);
+    });
+    return () => unsub();
+  }, [router]);
 
-    return () => unsub();
-  }, [router]);
+  // 🛑 Removed redundant useEffect that handled prefilling the local modal state
 
-  // When modal opens, prefill with any existing record for today (unchanged)
-  useEffect(() => {
-    if (!showToday) return;
-    const t = isoToday();
-    const existing = (vitals || []).find((v) => v?.date === t);
-    setTodayForm({
-      date: t,
-      glucose: (existing?.glucose ?? "") as any,
-      insulinUnits: (existing?.insulinUnits ?? "") as any,
-      carbs: (existing?.carbs ?? "") as any,
-      steps: (existing?.steps ?? "") as any,
-      mood: existing?.mood ?? "",
-      notes: existing?.notes ?? "",
-      updatedAt: existing?.updatedAt,
-    });
-  }, [showToday, vitals]);
+  // Count a day as filled if bloodSugar is present
+  const filledDays = useMemo(() => {
+    if (!Array.isArray(vitals)) return 0;
+    // 🛑 Vitals from subcollection are now full objects, filtering on non-null bloodSugar is better.
+    return vitals.filter((d) => d && d.bloodSugar !== null).length;
+  }, [vitals]);
 
-  // Count a day as filled if any field has a non-empty value
-  const filledDays = useMemo(() => {
-    if (!Array.isArray(vitals)) return 0;
-    return vitals.filter((d) => d && Object.values(d).some((v) => String(v ?? "").trim().length > 0)).length;
-  }, [vitals]);
+  const planUnlocked = filledDays >= 7;
 
-  const planUnlocked = filledDays >= 7;
+  const btnBase = "inline-flex items-center gap-2 rounded-full px-6 py-3 font-semibold transition-all duration-300 will-change-transform hover:-translate-y-0.5 hover:shadow-xl";
 
-  // cute button base (header + CTA reuse) — kept as in your original
-  const btnBase = "inline-flex items-center gap-2 rounded-full px-6 py-3 font-semibold transition-all duration-300 will-change-transform hover:-translate-y-0.5 hover:shadow-xl";
+  // 🛑 Removed saveTodayToFirestore as we use the logic in TodayVitalsDialog.tsx now
 
-  async function saveTodayToFirestore() {
-    if (!user) return;
-    setSaving(true);
-    try {
-      const ref = doc(db, "users", user.uid);
-      const snap = await getDoc(ref);
-      const current: VitalEntry[] = snap.exists() && Array.isArray((snap.data() as any).vitals) ? ((snap.data() as any).vitals as VitalEntry[]) : [];
+  // --- Reminders functions (Firestore-backed, kept as-is) ---
+  async function openAddReminderModal() {
+    setNewReminderText("");
+    setShowReminderModal(true);
+  }
 
-      const cleaned: VitalEntry = {
-        date: todayForm.date || isoToday(),
-        glucose: todayForm.glucose === "" ? null : Number(todayForm.glucose as any),
-        insulinUnits: todayForm.insulinUnits === "" ? null : Number(todayForm.insulinUnits as any),
-        carbs: todayForm.carbs === "" ? null : Number(todayForm.carbs as any),
-        steps: todayForm.steps === "" ? null : Number(todayForm.steps as any),
-        mood: todayForm.mood || "",
-        notes: todayForm.notes || "",
-        updatedAt: Date.now(),
-      };
+  async function handleAddReminder() {
+    if (!user || !newReminderText.trim()) return;
+    setReminderSaving(true);
+    try {
+      const colRef = collection(db, "users", user.uid, "reminders");
+      const docRef = await addDoc(colRef, { text: newReminderText.trim(), createdAt: Timestamp.now() });
+      const newR: Reminder = { id: docRef.id, text: newReminderText.trim(), createdAt: Date.now() };
+      setReminders((s) => [...s, newR]);
+      setShowReminderModal(false);
+      setNewReminderText("");
+    } catch (e) {
+      console.error("Failed to add reminder", e);
+    } finally {
+      setReminderSaving(false);
+    }
+  }
 
-      // Replace today's entry or append, then keep only last 7
-      let next = [...current];
-      const idx = next.findIndex((v) => v?.date === cleaned.date);
-      if (idx >= 0) next[idx] = { ...next[idx], ...cleaned };
-      else next.push(cleaned);
-      next = next.slice(-7);
+  async function removeReminder(id: string) {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, "users", user.uid, "reminders", id));
+      setReminders((s) => s.filter((r) => r.id !== id));
+    } catch (e) {
+      console.error("Failed to delete reminder", e);
+    }
+  }
 
-      await setDoc(ref, { vitals: next }, { merge: true });
-      setVitals(next);
-      setShowToday(false);
-    } finally {
-      setSaving(false);
-    }
-  }
+  // Helper: small preview of plan (first few lines)
+  function planSnippet(text: string | null | undefined, limit = 140) {
+    if (!text) return "No plan yet. Generate one from Vitals.";
+    const cleaned = text.replace(/\n+/g, " ").trim();
+    return cleaned.length > limit ? cleaned.slice(0, limit).trim() + "…" : cleaned;
+  }
 
-  // --- Reminders functions (Firestore-backed) ---
-  async function openAddReminderModal() {
-    setNewReminderText("");
-    setShowReminderModal(true);
-  }
+  // Compute vitals summary: pick latest entry
+  const latestVitals = vitals && vitals.length ? vitals[vitals.length - 1] : null;
 
-  async function handleAddReminder() {
-    if (!user || !newReminderText.trim()) return;
-    setReminderSaving(true);
-    try {
-      const colRef = collection(db, "users", user.uid, "reminders");
-      // create firestore doc
-      const docRef = await addDoc(colRef, { text: newReminderText.trim(), createdAt: Date.now() });
-      const newR: Reminder = { id: docRef.id, text: newReminderText.trim(), createdAt: Date.now() };
-      setReminders((s) => [...s, newR]);
-      setShowReminderModal(false);
-      setNewReminderText("");
-    } catch (e) {
-      console.error("Failed to add reminder", e);
-    } finally {
-      setReminderSaving(false);
-    }
-  }
-
-  async function removeReminder(id: string) {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, "users", user.uid, "reminders", id));
-      setReminders((s) => s.filter((r) => r.id !== id));
-    } catch (e) {
-      console.error("Failed to delete reminder", e);
-    }
-  }
-
-  // Helper: small preview of plan (first few lines)
-  function planSnippet(text: string | null | undefined, limit = 140) {
-    if (!text) return "No plan yet. Generate one from Vitals.";
-    const cleaned = text.replace(/\n+/g, " ").trim();
-    return cleaned.length > limit ? cleaned.slice(0, limit).trim() + "…" : cleaned;
-  }
-
-  // Compute vitals summary: pick latest entry (last element of vitals array)
-  const latestVitals = vitals && vitals.length ? vitals[vitals.length - 1] : null;
-
-  return (
+  return (
     <div className={`${lexend.className} min-h-screen bg-[#f8f6f8] text-[#4a0034]`}>
       {/* HEADER */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-white/50 border-b border-[#7a004b1a]">

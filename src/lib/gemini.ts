@@ -1,21 +1,60 @@
-// lib/gemini.ts
+// src/lib/gemini.ts
+
+import { WeeklyPlan } from "./planEngine";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY!;
-if (!apiKey) throw new Error("Gemini API key missing. Set NEXT_PUBLIC_GEMINI_API_KEY in .env.local");
+const MODEL_NAME = "gemini-2.5-flash";
 
-export const genAI = new GoogleGenerativeAI(apiKey);
+/**
+ * Best-effort AI refinement.
+ * If anything fails, the original plan is returned unchanged.
+ */
+export async function refinePlanWithAI(
+  plan: WeeklyPlan
+): Promise<WeeklyPlan> {
+  const apiKey = process.env.GEMINI_API_KEY;
 
-export async function generatePlanFromVitals(vitals: Record<string, any>) {
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  // AI is optional — silently skip if unavailable
+  if (!apiKey) {
+    return plan;
+  }
 
-  const prompt = `
-  Generate a detailed, personalized weekly diabetes management plan based on the following data:
-  ${JSON.stringify(vitals, null, 2)}
-  Include practical dietary, insulin, and exercise suggestions.
-  Keep it under 200 words.
-  `;
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+    const prompt = `
+You are a supportive health assistant.
+
+Explain the following weekly diabetes plan in an empathetic, motivating tone.
+Do NOT give medical advice beyond what is stated.
+Do NOT introduce new actions.
+Keep the response under 150 words.
+
+Plan focus:
+${plan.focus}
+
+Plan details:
+${JSON.stringify(plan.dayPlans, null, 2)}
+
+Metrics summary:
+${JSON.stringify(plan.metrics, null, 2)}
+`;
+
+    const result = await model.generateContent(prompt);
+    const text = result?.response?.text();
+
+    if (!text || text.length < 20) {
+      return plan;
+    }
+
+    return {
+      ...plan,
+      source: "rule-engine+ai",
+      aiSummary: text.trim(),
+    };
+  } catch (error) {
+    // AI failure must NEVER affect core functionality
+    return plan;
+  }
 }
