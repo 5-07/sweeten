@@ -1,5 +1,4 @@
-// app/dashboard/vitals/page.tsx (FIXED and COMPLETED)
-
+// app/dashboard/vitals/page.tsx 
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -162,20 +161,21 @@ export default function VitalsCalendar() {
 
     // 1. Filter Vitals: Get the last 7 non-null vitals entries for the AI
     const allVitals: VitalsEntry[] = Object.values(vitalsMap).sort((a, b) => b.date.localeCompare(a.date));
-    const vitalsForPlan: VitalsForPlan[] = allVitals
-      .filter(v => v.bloodSugar !== null) // Only count days with recorded blood sugar
-      .slice(0, 7) // Take the 7 most recent
-      .map(v => ({ // Shape data for the API (uses all fields now)
-        date: v.date,
-        bloodSugar: v.bloodSugar,
-        bloodPressure: v.bloodPressure,
-        weight: v.weight,
-        insulinUnits: v.insulinUnits,
-        carbs: v.carbs,
-        steps: v.steps,
-        mood: v.mood,
-        notes: v.notes,
-      }));
+  const vitalsForPlan: VitalsForPlan[] = Object.values(vitalsMap)
+  .filter(v => v.bloodSugar !== null)
+  .slice(-7) // last 7 days
+  .map(v => ({
+    date: v.date,
+    bloodSugar: v.bloodSugar!,
+    bloodPressure: v.bloodPressure,
+    weight: v.weight,
+    insulinUnits: v.insulinUnits,
+    carbs: v.carbs,
+    steps: v.steps,
+    mood: v.mood,
+    notes: v.notes,
+  }));
+
       
     if (vitalsForPlan.length < 7) {
       setToast(`Need ${7 - vitalsForPlan.length} more days with Blood Sugar recorded.`);
@@ -189,15 +189,17 @@ export default function VitalsCalendar() {
       // 2. Get secure token for API call
       const token = await getAuthToken(user);
       
-      // 3. Call the Next.js API route securely
-      const res = await fetch("/api/plan/generate", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // Pass JWT for server-side auth
-        },
-        body: JSON.stringify({ vitals: vitalsForPlan }),
-      });
+      // 3. Call the Next.js API route securely
+      // API route now fetches vitals from DB, but we can still send them for backward compatibility
+      const res = await fetch("/api/plan/generate", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` // Pass JWT for server-side auth
+        },
+        // Body is optional - API will fetch from DB if not provided
+        body: JSON.stringify({}),
+      });
 
       if (!res.ok) {
         const errorData = await res.json();

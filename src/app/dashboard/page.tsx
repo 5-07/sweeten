@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx (FIXED)
+// app/dashboard/page.tsx 
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lexend, Lexend_Tera } from "next/font/google";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { getDoc, doc, collection, getDocs, addDoc, deleteDoc, Timestamp } from "firebase/firestore";
+import { getDoc, doc, collection, getDocs, addDoc, deleteDoc, Timestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 // 🛑 Import the correct dialog component and utilities
 import TodayVitalsDialog from "@/components/TodayVitalsDialog";
@@ -98,20 +98,27 @@ export default function DashboardPage() {
       console.error("Failed to load reminders", e);
     }
 
-    // 🛑 Load Plan Preview using new utility
-    try {
-      const plan = await fetchUserPlan(u.uid);
-      if (typeof plan === 'string') {
-        setPlanPreview(plan);
-      } else if (plan && plan.dayPlans) {
-        // If it's a fallback plan structure
-        setPlanPreview(plan.message + '\n' + plan.dayPlans.map((p:any) => p.day).join(', '));
-      } else {
-        setPlanPreview(null);
-      }
-    } catch (e) {
-      console.error("Failed to load plan preview", e);
-    }
+    // 🛑 Load Plan Preview using new utility
+    try {
+      const plan = await fetchUserPlan(u.uid);
+
+      if (plan) {
+        // New plan structure: plan.focus, plan.message, plan.dayPlans
+        const focus = plan.focus || "Balanced Maintenance Week";
+        const message = plan.message || "";
+        const firstDayPlan = plan.dayPlans?.[0];
+        const firstDietTip = firstDayPlan?.diet?.[0] || "";
+        
+        setPlanPreview(
+          `Focus: ${focus}\n${message}\n\n${firstDietTip ? `Today: ${firstDietTip}` : ""}`
+        );
+      } else {
+        setPlanPreview(null);
+      }
+
+    } catch (e) {
+      console.error("Failed to load plan preview", e);
+    }
   };
 
   useEffect(() => {
@@ -294,7 +301,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-3 gap-3">
               <div className={`rounded-2xl p-4 border border-[#7a004b12] ${PASTELS[0]}`}>
                 <div className="text-sm opacity-70">Glucose</div>
-                <div className="text-2xl font-semibold mt-2">{latestVitals?.glucose ?? "—"}</div>
+                <div className="text-2xl font-semibold mt-2">{latestVitals?.bloodSugar ?? "—"}</div>
                 <div className="text-xs opacity-80 mt-1">mg/dL</div>
               </div>
 
@@ -377,68 +384,14 @@ export default function DashboardPage() {
           ))}
         </ul>
       </nav>
-
-      {/* TODAY QUICK ENTRY MODAL (kept intact) */}
-      <AnimatePresence>
-        {showToday && (
-          <motion.div key="overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-pink-100/50 backdrop-blur-md flex items-center justify-center p-4" onClick={() => setShowToday(false)}>
-            <motion.div key="card" initial={{ scale: 0.95, y: 12, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.98, y: 8, opacity: 0 }} transition={{ type: "spring", stiffness: 220, damping: 22 }} className="w-full max-w-3xl md:max-w-4xl h-[90vh] overflow-y-auto rounded-3xl bg-white text-[#4a0034] shadow-2xl border border-[#7a004b1a]" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[#7a004b12] sticky top-0 bg-white z-10">
-                <h3 className={`${lexendTera.className} text-xl`}>Log today’s vitals</h3>
-                <button onClick={() => setShowToday(false)} className="p-2 rounded-full hover:bg-[#7a004b0a]"><X size={18} /></button>
-              </div>
-
-              <div className="px-6 py-5 space-y-4">
-                {/* Use your original form fields here — unchanged visually */}
-                <div className="grid grid-cols-2 gap-4">
-                  <label className="text-sm">
-                    <span className="block mb-1">Date</span>
-                    <input type="date" value={todayForm.date} readOnly className="w-full rounded-xl border border-[#7a004b2a] px-3 py-2 bg-gray-50" />
-                  </label>
-                  <label className="text-sm">
-                    <span className="block mb-1">Glucose (mg/dL)</span>
-                    <input type="number" inputMode="numeric" value={todayForm.glucose as any} onChange={(e) => setTodayForm((s: any) => ({ ...s, glucose: e.target.value }))} className="w-full rounded-xl border border-[#7a004b2a] px-3 py-2 outline-none focus:ring-2 focus:ring-[#7a004b]" />
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <label className="text-sm">
-                    <span className="block mb-1">Insulin (U)</span>
-                    <input type="number" inputMode="numeric" value={todayForm.insulinUnits as any} onChange={(e) => setTodayForm((s: any) => ({ ...s, insulinUnits: e.target.value }))} className="w-full rounded-xl border border-[#7a004b2a] px-3 py-2 outline-none focus:ring-2 focus:ring-[#7a004b]" />
-                  </label>
-                  <label className="text-sm">
-                    <span className="block mb-1">Carbs (g)</span>
-                    <input type="number" inputMode="numeric" value={todayForm.carbs as any} onChange={(e) => setTodayForm((s: any) => ({ ...s, carbs: e.target.value }))} className="w-full rounded-xl border border-[#7a004b2a] px-3 py-2 outline-none focus:ring-2 focus:ring-[#7a004b]" />
-                  </label>
-                  <label className="text-sm">
-                    <span className="block mb-1">Steps</span>
-                    <input type="number" inputMode="numeric" value={todayForm.steps as any} onChange={(e) => setTodayForm((s: any) => ({ ...s, steps: e.target.value }))} className="w-full rounded-xl border border-[#7a004b2a] px-3 py-2 outline-none focus:ring-2 focus:ring-[#7a004b]" />
-                  </label>
-                </div>
-
-                <div>
-                  <span className="block mb-1 text-sm">Mood</span>
-                  <div className="flex items-center gap-2">
-                    {MOODS.map((m) => (
-                      <button key={m} onClick={() => setTodayForm((s: any) => ({ ...s, mood: m }))} className={`h-10 w-10 rounded-full border text-lg flex items-center justify-center transition ${todayForm.mood === m ? "bg-[#ffd2ea] border-[#7a004b]" : "border-[#7a004b2a] hover:bg-[#7a004b0a]"}`}>{m}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <label className="text-sm block">
-                  <span className="block mb-1">Notes</span>
-                  <textarea value={todayForm.notes} onChange={(e) => setTodayForm((s: any) => ({ ...s, notes: e.target.value }))} rows={3} className="w-full rounded-xl border border-[#7a004b2a] px-3 py-2 outline-none focus:ring-2 focus:ring-[#7a004b]" placeholder="Anything worth remembering about today…" />
-                </label>
-
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <button onClick={() => setShowToday(false)} className="rounded-full px-5 py-2 border border-[#7a004b2a] hover:bg-[#7a004b0a]">Cancel</button>
-                  <button onClick={saveTodayToFirestore} disabled={saving} className={`rounded-full px-6 py-2 bg-[#7a004b] text-white hover:bg-[#5c0037] transition ${saving ? "opacity-60" : ""}`}>{saving ? "Saving…" : "Save"}</button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+<AnimatePresence>
+{showToday && (
+  <TodayVitalsDialog
+    open={showToday}
+    onClose={() => setShowToday(false)}
+  />
+)}
+</AnimatePresence>
 
       {/* --- NEW: Reminders Modal (big) --- */}
       <AnimatePresence>

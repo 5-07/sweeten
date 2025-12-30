@@ -39,29 +39,41 @@ export function buildAnalyticsSummary(
 
   const daysAnalyzed = vitals.length;
 
-  // --- Glucose analytics ---
-  const glucoseValues = vitals.map(v => v.glucose);
+  // --- Glucose analytics (null-safe) ---
+  const glucoseValues = vitals
+    .map(v => v.glucose)
+    .filter((g): g is number => typeof g === "number" && !isNaN(g) && g > 0);
+  
   const avgGlucose =
-    glucoseValues.reduce((a, b) => a + b, 0) / glucoseValues.length;
+    glucoseValues.length > 0
+      ? Math.round(glucoseValues.reduce((a, b) => a + b, 0) / glucoseValues.length)
+      : null;
 
-  const glucoseVariance =
-    glucoseValues.reduce(
-      (sum, g) => sum + Math.pow(g - avgGlucose, 2),
-      0
-    ) / glucoseValues.length;
-
-  const glucoseStdDev = Math.sqrt(glucoseVariance);
+  const glucoseStdDev =
+    glucoseValues.length > 0 && avgGlucose !== null
+      ? Math.round(
+          Math.sqrt(
+            glucoseValues.reduce(
+              (sum, g) => sum + Math.pow(g - avgGlucose, 2),
+              0
+            ) / glucoseValues.length
+          )
+        )
+      : null;
 
   // --- Insulin consistency ---
-  const insulinDays = vitals.filter(v => v.insulin !== undefined);
+  const insulinDays = vitals.filter(v => v.insulin !== undefined && v.insulin !== null);
   const insulinConsistencyScore =
     insulinDays.length === 0
       ? null
       : Math.round((insulinDays.length / daysAnalyzed) * 100);
 
   // --- Adherence score (logging completeness) ---
-  const adherenceScore = Math.round(
-    (daysAnalyzed / 7) * 100
+  // Score based on how many days were logged out of the expected 7 days
+  const expectedDays = 7;
+  const adherenceScore = Math.min(
+    Math.round((daysAnalyzed / expectedDays) * 100),
+    100
   );
 
   // --- Activity analytics ---
@@ -111,8 +123,8 @@ export function buildAnalyticsSummary(
 
   return {
     daysAnalyzed,
-    avgGlucose: Math.round(avgGlucose),
-    glucoseStdDev: Math.round(glucoseStdDev),
+    avgGlucose: avgGlucose !== null ? Math.round(avgGlucose) : null,
+    glucoseStdDev: glucoseStdDev !== null ? Math.round(glucoseStdDev) : null,
     insulinConsistencyScore,
     adherenceScore: Math.min(adherenceScore, 100),
     avgSteps,
