@@ -35,7 +35,7 @@ export type VitalsEntry = {
 };
 
 // Data type for feeding into the Gemini AI (subset of VitalsEntry)
-export type VitalsForPlan = Omit<VitalsEntry, 'id' | 'createdAt' | 'confirmed'>[];
+export type VitalsForPlan = Omit<VitalsEntry, 'id' | 'createdAt' | 'confirmed'>;
 
 
 const VITALS_COLLECTION = (uid: string) => collection(db, "users", uid, "vitals");
