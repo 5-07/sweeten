@@ -16,6 +16,19 @@ const lexend = Lexend({ subsets: ["latin"], weight: ["400", "500"], display: "sw
 
 type ViewMode = "month" | "week" | "day";
 
+type EntryFormState = {
+  bloodSugar: number | "";
+  insulinUnits: number | "";
+  carbs: number | "";
+  weight: number | "";
+  sys: number | "";
+  dia: number | "";
+  steps: number | "";
+  mood: string;
+  notes: string;
+};
+
+
 export default function VitalsCalendar() {
   const router = useRouter();
   const [user, setUser] = useState<any | null>(null);
@@ -25,10 +38,18 @@ export default function VitalsCalendar() {
   const [vitalsMap, setVitalsMap] = useState<Record<string, VitalsEntry>>({});
   const [selectedISO, setSelectedISO] = useState<string | null>(null);
   // 🛑 All fields defined, using correct 'bloodSugar' and 'insulinUnits'
-  const [entryForm, setEntryForm] = useState<any>({
-    bloodSugar: "", insulinUnits: "", carbs: "", weight: "",
-    sys: "", dia: "", steps: "", mood: "", notes: ""
-  });
+const [entryForm, setEntryForm] = useState<EntryFormState>({
+  bloodSugar: "",
+  insulinUnits: "",
+  carbs: "",
+  weight: "",
+  sys: "",
+  dia: "",
+  steps: "",
+  mood: "",
+  notes: ""
+});
+
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -320,13 +341,13 @@ export default function VitalsCalendar() {
 
               <div className="grid grid-cols-2 gap-3">
                 {/* 🐛 FIX: Use bloodSugar and insulinUnits */}
-                <input type="number" value={entryForm.bloodSugar} onChange={e=>setEntryForm(s=>({...s, bloodSugar:e.target.value}))} placeholder="Blood Sugar (mg/dL)" className="p-2 border rounded" />
-                <input type="number" value={entryForm.insulinUnits} onChange={e=>setEntryForm(s=>({...s, insulinUnits:e.target.value}))} placeholder="Insulin (U)" className="p-2 border rounded" />
-                <input type="number" value={entryForm.carbs} onChange={e=>setEntryForm(s=>({...s, carbs:e.target.value}))} placeholder="Carbs (g)" className="p-2 border rounded" />
-                <input type="number" value={entryForm.weight} onChange={e=>setEntryForm(s=>({...s, weight:e.target.value}))} placeholder="Weight (kg)" className="p-2 border rounded" />
-                <input type="number" value={entryForm.sys} onChange={e=>setEntryForm(s=>({...s, sys:e.target.value}))} placeholder="BP Systolic" className="p-2 border rounded" />
-                <input type="number" value={entryForm.dia} onChange={e=>setEntryForm(s=>({...s, dia:e.target.value}))} placeholder="BP Diastolic" className="p-2 border rounded" />
-                <input type="number" value={entryForm.steps} onChange={e=>setEntryForm(s=>({...s, steps:e.target.value}))} placeholder="Steps" className="p-2 border rounded" />
+                <input type="number" value={entryForm.bloodSugar} onChange={e=>setEntryForm(s=>({...s, bloodSugar:e.target.value === "" ? "" : Number(e.target.value),}))} placeholder="Blood Sugar (mg/dL)" className="p-2 border rounded" />
+                <input type="number" value={entryForm.insulinUnits} onChange={e=>setEntryForm(s=>({...s, insulinUnits:e.target.value === "" ? "" : Number(e.target.value),}))} placeholder="Insulin (U)" className="p-2 border rounded" />
+                <input type="number" value={entryForm.carbs} onChange={e=>setEntryForm(s=>({...s, carbs:e.target.value === "" ? "" : Number(e.target.value),}))} placeholder="Carbs (g)" className="p-2 border rounded" />
+                <input type="number" value={entryForm.weight} onChange={e=>setEntryForm(s=>({...s, weight:e.target.value === "" ? "" : Number(e.target.value),}))} placeholder="Weight (kg)" className="p-2 border rounded" />
+                <input type="number" value={entryForm.sys} onChange={e=>setEntryForm(s=>({...s, sys:e.target.value === "" ? "" : Number(e.target.value),}))} placeholder="BP Systolic" className="p-2 border rounded" />
+                <input type="number" value={entryForm.dia} onChange={e=>setEntryForm(s=>({...s, dia:e.target.value === "" ? "" : Number(e.target.value),}))} placeholder="BP Diastolic" className="p-2 border rounded" />
+                <input type="number" value={entryForm.steps} onChange={e=>setEntryForm(s=>({...s, steps:e.target.value === "" ? "" : Number(e.target.value),}))} placeholder="Steps" className="p-2 border rounded" />
                 <input type="text" value={entryForm.mood} onChange={e=>setEntryForm(s=>({...s, mood:e.target.value}))} placeholder="Mood" className="p-2 border rounded" />
               </div>
 
