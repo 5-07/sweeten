@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -13,11 +12,6 @@ const nextConfig: NextConfig = {
       };
     }
     return config;
-  },
-
- 
-  experimental: {
-    turbo: false,
   },
 };
 
