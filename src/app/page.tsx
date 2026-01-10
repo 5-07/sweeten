@@ -213,7 +213,7 @@ export default function SignInPage() {
             </span>
           </h1>
           <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.6 }} className="mt-4 text-white/80 text-lg sm:text-xl max-w-xl mx-auto">
-            a soft, smart companion for diabetes—simple logs, gentle insights, brighter days.
+            
           </motion.p>
         </div>
       </section>
@@ -227,7 +227,7 @@ export default function SignInPage() {
           viewport={{ once: true }}
           className={`${lexendTera.className} text-4xl font-bold text-pink-100 mb-8`}
         >
-          Built from the heart 💜
+          Built from the heart 
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 50 }}
@@ -306,9 +306,8 @@ export default function SignInPage() {
             Ready to start your sweet journey?
           </h2>
           <p className="text-lg md:text-xl text-white/90 max-w-lg">
-            Sweeten is built as a gentle companion for diabetes management—a passion project
-            designed to bring comfort and clarity to your health journey. Simple, dreamy,
-            and soft at every step.
+            Sweeten is built as a gentle companion for diabetes management, a passion project
+            designed to bring comfort and clarity to your health journey. 
           </p>
 
           {/* CTA Button as Link */}
@@ -342,12 +341,12 @@ export default function SignInPage() {
           className="md:w-1/2 mt-10 md:mt-0"
         >
           <div className="backdrop-blur-xl bg-white/40 rounded-3xl p-8 shadow-xl border border-white/60">
-            <h3 className="text-2xl font-semibold text-[#7a004b] mb-4">What you’ll love 💕</h3>
+            <h3 className="text-2xl font-semibold text-[#7a004b] mb-4">What you’ll love: </h3>
             <ul className="space-y-3 text-[#7a004b]/80">
-              <li>✨ Simple and soft interface—built with care</li>
-              <li>📊 Easy logging and dreamy charts</li>
-              <li>🌸 Gentle reminders, not stressful alerts</li>
-              <li>💡 A passion project made with love</li>
+              <li>- Simple and soft interface—built with care</li>
+              <li>- Easy logging and dreamy charts</li>
+              <li>- Gentle reminders, not stressful alerts</li>
+              <li>- A passion project made with love</li>
             </ul>
           </div>
         </motion.div>
@@ -384,7 +383,7 @@ export default function SignInPage() {
 
       {/* FOOTER */}
       <footer className="relative py-16 text-center text-pink-200 bg-[#1a0d16]">
-        <p className="text-sm">© {new Date().getFullYear()} Sweeten. Built with love and softness.</p>
+        <p className="text-sm">© {new Date().getFullYear()} Sweeten. Built with love and purpose.</p>
       </footer>
     </main>
   );
