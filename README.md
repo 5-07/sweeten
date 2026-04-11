@@ -7,6 +7,7 @@ Sweeten is a research-driven digital health system that investigates how hybrid 
 Built on a **failure-first design philosophy**: the system must remain functional, interpretable, and clinically grounded even when AI is unavailable.
 
 > Live: [sweeten-3aa2.vercel.app](https://sweeten-3aa2.vercel.app)
+> 
 > Detailed Documentation: [sweeten_narrative.pdf](https://github.com/5-07/sweeten/blob/main/sweeten_narrative.pdf)
 ---
 
